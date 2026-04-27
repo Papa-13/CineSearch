@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const DIFF = {
-  easy:   { gridSize:14, time:300, penalty:5,  revealCost:6,  label:'Easy',   emoji:'🟢', color:'#27AE60', desc:'5:00 · small grid · −5s penalty' },
-  hard:   { gridSize:16, time:180, penalty:10, revealCost:8,  label:'Hard',   emoji:'🟡', color:'#E67E22', desc:'3:00 · standard grid · −10s penalty' },
-  expert: { gridSize:18, time:120, penalty:15, revealCost:10, label:'Expert', emoji:'🔴', color:'#C0392B', desc:'2:00 · big grid · −15s penalty' },
+  easy:   { gridSize:14, time:300, penalty:5,  timeBonus:8,  revealCost:6,  label:'Easy',   emoji:'🟢', color:'#27AE60', desc:'5:00 · +8s per find · −5s penalty' },
+  hard:   { gridSize:16, time:180, penalty:10, timeBonus:6,  revealCost:8,  label:'Hard',   emoji:'🟡', color:'#E67E22', desc:'3:00 · +6s per find · −10s penalty' },
+  expert: { gridSize:18, time:120, penalty:15, timeBonus:4,  revealCost:10, label:'Expert', emoji:'🔴', color:'#C0392B', desc:'2:00 · +4s per find · −15s penalty' },
 };
 
 // Each show has 3 × 15 unique words: easy (iconic) / hard (supporting) / expert (deep cuts)
@@ -262,6 +262,7 @@ export default function WordSearch(){
   const [timeLeft,setTimeLeft]=useState(0);
   const [flash,setFlash]=useState(null);
   const [penaltyMsg,setPenaltyMsg]=useState(null);
+  const [bonusMsg,setBonusMsg]=useState(null);
   const [darkMode,setDarkMode]=useState(true);
   const [revealedWord,setRevealedWord]=useState(null);
   const [points,setPoints]=useState(0);
@@ -343,7 +344,7 @@ export default function WordSearch(){
     const{grid,placed}=buildGrid(words,cfg.gridSize);
     gRef.current={grid,placed};
     setShowIdx(idx);setDiff(d);setGameData({grid,placed});setFound(new Set());
-    setSel(null);setTimeLeft(cfg.time);setFlash(null);setPenaltyMsg(null);
+    setSel(null);setTimeLeft(cfg.time);setFlash(null);setPenaltyMsg(null);setBonusMsg(null);
     setRevealedWord(null);setPoints(0);setRevealMode(false);setConfetti(false);
     setScreen('game');
   }
@@ -358,6 +359,10 @@ export default function WordSearch(){
     if(match){
       setFound(prev=>{const next=new Set(prev);next.add(match.word);if(next.size===gRef.current.placed.length){clearInterval(timerRef.current);setConfetti(true);setTimeout(()=>setScreen('done'),400);}return next;});
       setPoints(p=>p+1);
+      const bonus=diffCfg?.timeBonus||6;
+      setTimeLeft(t=>Math.min(t+bonus, diffCfg?.time||300));
+      setBonusMsg('+'+bonus+'s');
+      setTimeout(()=>setBonusMsg(null),900);
       setFlash({cells:cells.map(([r,c])=>cellKey(r,c)),type:'good'});
       setTimeout(()=>setFlash(null),700);
     }else{
@@ -535,6 +540,7 @@ export default function WordSearch(){
           <div style={{display:'flex',flexDirection:isMobile?'column':'row',gap:isMobile?14:22,alignItems:'flex-start'}}>
             <div style={{position:'relative',display:'flex',justifyContent:isMobile?'center':'flex-start',flexShrink:0,width:isMobile?'100%':'auto'}}>
               {penaltyMsg&&(<div style={{position:'absolute',top:'50%',left:'50%',zIndex:10,fontFamily:"'Cinzel',serif",fontSize:isMobile?'1.6rem':'2rem',fontWeight:900,color:'#E74C3C',textShadow:'0 0 20px rgba(231,76,60,0.8)',pointerEvents:'none',animation:'penaltyFade 0.9s ease forwards'}}>{penaltyMsg}</div>)}
+              {bonusMsg&&(<div style={{position:'absolute',top:'50%',left:'50%',zIndex:10,fontFamily:"'Cinzel',serif",fontSize:isMobile?'1.6rem':'2rem',fontWeight:900,color:'#2ECC71',textShadow:'0 0 20px rgba(46,204,113,0.8)',pointerEvents:'none',animation:'penaltyFade 0.9s ease forwards'}}>{bonusMsg}</div>)}
               <div ref={gridContRef} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
                 style={{display:'grid',gridTemplateColumns:'repeat('+gridSize+', '+cellPx+'px)',gap:gapPx+'px',background:T.gridBg,border:'2px solid '+accentColor+'66',borderRadius:12,padding:(gridPadPx/2)+'px',touchAction:'none',boxShadow:'0 0 32px '+accentColor+(dk?'25':'33'),flexShrink:0}}>
                 {gameData.grid.map((row,r)=>row.map((ch,c)=>{
